@@ -1,23 +1,53 @@
+<!--
+  AI Smart Agriculture Advisor - Frontend
+  =========================================
+  This is a single HTML file containing everything: structure (HTML),
+  styling (CSS), and logic (JavaScript). No build tools needed.
+
+  HOW IT WORKS:
+  1. User fills in soil/weather values in the form inputs
+  2. JavaScript reads those values and sends them as JSON to the backend API
+  3. The API returns predictions, and JavaScript renders the results on the page
+
+  STRUCTURE:
+  - Section 1: Crop Recommendation (all 7 parameters)
+  - Section 2: Fertilizer Recommendation (N, P, K + optional crop name)
+  - Both sections work independently
+
+  API CONNECTION:
+  - The frontend talks to FastAPI at http://localhost:8000
+  - It uses fetch() to make POST requests with JSON bodies
+  - CORS on the backend allows this cross-origin communication
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Smart Agriculture Advisor</title>
+
+    <!-- ─── CSS STYLES ──────────────────────────────────────────────────────── -->
+    <!--
+      All styles are inline (no separate CSS file) to keep things simple.
+      The design uses a green color scheme to match the agriculture theme.
+    -->
     <style>
+        /* Reset default browser margins/padding so all browsers look the same */
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* Gradient background: light green top-left to slightly darker bottom-right */
             background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-            min-height: 100vh;
+            min-height: 100vh;  /* fill at least the full screen height */
             padding: 20px;
         }
 
+        /* ── Header ── */
         h1 {
             text-align: center;
             color: #2e7d32;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             font-size: 2rem;
         }
 
@@ -27,11 +57,15 @@
             margin-bottom: 30px;
         }
 
+        /* ── Layout Container ── */
+        /* max-width keeps the content readable on wide screens */
         .container {
             max-width: 900px;
-            margin: 0 auto;
+            margin: 0 auto;  /* center horizontally */
         }
 
+        /* ── Card Component ── */
+        /* Each section (crop / fertilizer) is wrapped in a card */
         .card {
             background: white;
             border-radius: 12px;
@@ -46,6 +80,13 @@
             font-size: 1.3rem;
         }
 
+        /* ── Form Grid ── */
+        /*
+          CSS Grid auto-fills columns with a minimum width of 180px.
+          On wide screens: 4 inputs per row
+          On narrow screens: fewer columns, inputs stack naturally
+          This makes the form responsive without media queries.
+        */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -61,25 +102,36 @@
             font-size: 0.9rem;
         }
 
-        .form-group input {
+        .form-group input,
+        .form-group select {
             width: 100%;
             padding: 10px 12px;
             border: 2px solid #c8e6c9;
             border-radius: 8px;
             font-size: 1rem;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s;  /* smooth color change on focus */
+            background: white;
         }
 
-        .form-group input:focus {
+        /* When user clicks on an input, highlight the border */
+        .form-group input:focus,
+        .form-group select:focus {
             outline: none;
             border-color: #66bb6a;
+        }
+
+        /* ── Buttons ── */
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
         button {
             background: #43a047;
             color: white;
             border: none;
-            padding: 12px 32px;
+            padding: 12px 28px;
             border-radius: 8px;
             font-size: 1rem;
             cursor: pointer;
@@ -88,21 +140,42 @@
 
         button:hover { background: #2e7d32; }
 
+        /* Disabled state while loading */
+        button:disabled {
+            background: #a5d6a7;
+            cursor: not-allowed;
+        }
+
+        /* Secondary button style (outline) */
+        .btn-secondary {
+            background: white;
+            color: #43a047;
+            border: 2px solid #43a047;
+        }
+
+        .btn-secondary:hover {
+            background: #e8f5e9;
+        }
+
+        /* ── Results Area ── */
         .result {
             margin-top: 20px;
             padding: 20px;
             background: #f1f8e9;
             border-radius: 8px;
             border-left: 4px solid #66bb6a;
-            display: none;
+            display: none;       /* hidden by default */
         }
 
-        .result.show { display: block; }
+        .result.show { display: block; }  /* shown when JS adds this class */
 
         .result h3 {
             color: #2e7d32;
             margin-bottom: 10px;
+            margin-top: 16px;
         }
+
+        .result h3:first-child { margin-top: 0; }
 
         .result ul {
             list-style: none;
@@ -114,52 +187,60 @@
             color: #333;
         }
 
+        /* ── Crop Badge ── */
+        /* The recommended crop name displayed as a green pill/badge */
         .crop-badge {
             display: inline-block;
             background: #43a047;
             color: white;
-            padding: 6px 16px;
+            padding: 8px 20px;
             border-radius: 20px;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             font-weight: bold;
             margin-bottom: 12px;
+            text-transform: uppercase;
         }
 
+        /* ── Probability Bars ── */
+        /* Visual bars showing prediction confidence for each crop */
         .probability-bar {
             display: flex;
             align-items: center;
-            margin: 6px 0;
+            margin: 8px 0;
         }
 
         .probability-bar .name {
-            width: 100px;
+            width: 110px;
             font-weight: 600;
+            text-transform: capitalize;
         }
 
+        /* The gray background track */
         .probability-bar .bar-bg {
             flex: 1;
-            height: 20px;
+            height: 22px;
             background: #e0e0e0;
-            border-radius: 10px;
+            border-radius: 11px;
             overflow: hidden;
             margin: 0 10px;
         }
 
+        /* The green fill that shows the percentage */
         .probability-bar .bar-fill {
             height: 100%;
             background: #66bb6a;
-            border-radius: 10px;
-            transition: width 0.5s;
+            border-radius: 11px;
+            transition: width 0.5s;  /* animates the bar width */
         }
 
         .probability-bar .pct {
-            width: 50px;
+            width: 55px;
             text-align: right;
             font-weight: 600;
         }
 
-        .error { color: #c62828; font-weight: 600; }
-
+        /* ── Nutrient Status Chips ── */
+        /* Colored badges showing low/adequate/high for each nutrient */
         .nutrient-status {
             display: flex;
             gap: 12px;
@@ -174,20 +255,85 @@
             font-weight: 600;
         }
 
-        .nutrient-chip.low { background: #ffcdd2; color: #c62828; }
-        .nutrient-chip.adequate { background: #c8e6c9; color: #2e7d32; }
-        .nutrient-chip.high { background: #fff9c4; color: #f57f17; }
+        /* Color coding: red = low, green = adequate, yellow = high */
+        .nutrient-chip.low     { background: #ffcdd2; color: #c62828; }
+        .nutrient-chip.deficit { background: #ffcdd2; color: #c62828; }
+        .nutrient-chip.adequate{ background: #c8e6c9; color: #2e7d32; }
+        .nutrient-chip.optimal { background: #c8e6c9; color: #2e7d32; }
+        .nutrient-chip.high    { background: #fff9c4; color: #f57f17; }
+        .nutrient-chip.surplus { background: #fff9c4; color: #f57f17; }
+
+        /* ── Fertilizer Cards ── */
+        .fert-card {
+            background: white;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 14px;
+            margin: 8px 0;
+        }
+
+        .fert-card .fert-name {
+            font-weight: 700;
+            color: #2e7d32;
+            font-size: 1rem;
+        }
+
+        .fert-card .fert-nutrient {
+            font-size: 0.85rem;
+            color: #666;
+            margin: 4px 0;
+        }
+
+        .fert-card .fert-desc {
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        /* ── Error Text ── */
+        .error {
+            color: #c62828;
+            font-weight: 600;
+        }
+
+        /* ── Loading Spinner ── */
+        .loading {
+            color: #388e3c;
+            font-weight: 600;
+        }
+
+        /* ── Section Divider ── */
+        .divider {
+            border: none;
+            border-top: 1px solid #e0e0e0;
+            margin: 16px 0;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>AI Smart Agriculture Advisor</h1>
         <p class="subtitle">Get crop and fertilizer recommendations based on your soil conditions</p>
 
-        <!-- Crop Prediction -->
+        <!-- ════════════════════════════════════════════════════════════════════
+             SECTION 1: CROP RECOMMENDATION
+             ════════════════════════════════════════════════════════════════════
+             This form collects all 7 parameters needed for crop prediction.
+             When submitted, it sends a POST request to /predict-crop.
+        -->
         <div class="card">
-            <h2>Crop Recommendation</h2>
+            <h2>1. Crop Recommendation</h2>
+
+            <!-- Form Grid: inputs arranged in a responsive grid -->
             <div class="form-grid">
+                <!--
+                  Each form-group has:
+                    label  = tells the user what to enter
+                    input  = where the user types the value
+                    id     = unique identifier so JavaScript can read the value
+                    placeholder = example value shown in gray when empty
+                    step   = allows decimal values (e.g. 0.1 for temperature)
+                -->
                 <div class="form-group">
                     <label>Nitrogen (N)</label>
                     <input type="number" id="crop-n" placeholder="e.g. 90">
@@ -217,13 +363,32 @@
                     <input type="number" id="crop-rainfall" placeholder="e.g. 200" step="0.1">
                 </div>
             </div>
-            <button onclick="predictCrop()">Get Crop Recommendation</button>
+
+            <!--
+              Two buttons:
+              1. "Get Recommendation" - predicts the crop
+              2. "Get Both" - predicts crop AND fetches fertilizer advice
+                 using the same N, P, K values and the predicted crop name
+            -->
+            <div class="btn-row">
+                <button onclick="predictCrop()">Get Crop Recommendation</button>
+                <button class="btn-secondary" onclick="getBoth()">Get Crop + Fertilizer</button>
+            </div>
+
+            <!-- Results appear here after the API responds -->
             <div class="result" id="crop-result"></div>
         </div>
 
-        <!-- Fertilizer Recommendation -->
+        <!-- ════════════════════════════════════════════════════════════════════
+             SECTION 2: FERTILIZER RECOMMENDATION
+             ════════════════════════════════════════════════════════════════════
+             This form collects N, P, K values and an optional crop name.
+             - Without crop: general fertilizer advice
+             - With crop: advice tailored to that specific crop's needs
+        -->
         <div class="card">
-            <h2>Fertilizer Recommendation</h2>
+            <h2>2. Fertilizer Recommendation</h2>
+
             <div class="form-grid">
                 <div class="form-group">
                     <label>Nitrogen (N)</label>
@@ -237,17 +402,105 @@
                     <label>Potassium (K)</label>
                     <input type="number" id="fert-k" placeholder="e.g. 55">
                 </div>
+                <div class="form-group">
+                    <label>Crop (optional)</label>
+                    <!--
+                      select element = dropdown menu
+                      The first option (value="") means "no crop selected"
+                      When a crop is selected, the API gives crop-specific advice
+                    -->
+                    <select id="fert-crop">
+                        <option value="">-- General advice --</option>
+                        <option value="rice">Rice</option>
+                        <option value="maize">Maize</option>
+                        <option value="chickpea">Chickpea</option>
+                        <option value="kidneybeans">Kidney Beans</option>
+                        <option value="pigeonpeas">Pigeon Peas</option>
+                        <option value="mothbeans">Moth Beans</option>
+                        <option value="mungbean">Mung Bean</option>
+                        <option value="blackgram">Black Gram</option>
+                        <option value="lentil">Lentil</option>
+                        <option value="pomegranate">Pomegranate</option>
+                        <option value="banana">Banana</option>
+                        <option value="mango">Mango</option>
+                        <option value="grapes">Grapes</option>
+                        <option value="watermelon">Watermelon</option>
+                        <option value="muskmelon">Muskmelon</option>
+                        <option value="apple">Apple</option>
+                        <option value="orange">Orange</option>
+                        <option value="papaya">Papaya</option>
+                        <option value="coconut">Coconut</option>
+                        <option value="cotton">Cotton</option>
+                        <option value="jute">Jute</option>
+                        <option value="coffee">Coffee</option>
+                    </select>
+                </div>
             </div>
+
             <button onclick="recommendFertilizer()">Get Fertilizer Advice</button>
             <div class="result" id="fert-result"></div>
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         JAVASCRIPT
+         ═══════════════════════════════════════════════════════════════════════
+         This section contains all the logic:
+         1. Reading form values
+         2. Sending requests to the backend API
+         3. Rendering results as HTML
+    -->
     <script>
-        const API_URL = "http://localhost:5000";
+        // ─── Configuration ──────────────────────────────────────────────────
+        // API_URL points to the FastAPI backend.
+        // Change this if your backend runs on a different port or server.
+        const API_URL = "http://localhost:8000";
 
+
+        // ─── Helper Functions ───────────────────────────────────────────────
+
+        /**
+         * Show a result div with the given HTML content.
+         * This function:
+         *   1. Sets the innerHTML (the visible content)
+         *   2. Adds the "show" CSS class to make it visible
+         *
+         * @param {string} id - The ID of the result div (e.g. "crop-result")
+         * @param {string} html - The HTML content to display
+         */
+        function showResult(id, html) {
+            const div = document.getElementById(id);
+            div.innerHTML = html;
+            div.classList.add("show");
+        }
+
+        /**
+         * Show a loading message in the result div.
+         */
+        function showLoading(id) {
+            showResult(id, '<p class="loading">Analyzing your soil data...</p>');
+        }
+
+
+        // ─── Crop Prediction ────────────────────────────────────────────────
+
+        /**
+         * Reads form values, sends them to /predict-crop, and displays results.
+         *
+         * Flow:
+         *   1. Read all 7 input values from the form
+         *   2. Validate that none are empty
+         *   3. Send POST request with JSON body to the API
+         *   4. Parse the JSON response
+         *   5. Build HTML to display the recommended crop + top 3 with bars
+         *
+         * @returns {string|null} The predicted crop name (used by getBoth)
+         */
         async function predictCrop() {
-            const resultDiv = document.getElementById("crop-result");
+            const resultDiv = "crop-result";
+
+            // Read values from the form inputs
+            // document.getElementById("crop-n").value returns the text the user typed
             const data = {
                 N: document.getElementById("crop-n").value,
                 P: document.getElementById("crop-p").value,
@@ -258,62 +511,113 @@
                 rainfall: document.getElementById("crop-rainfall").value,
             };
 
-            // Validate all fields are filled
+            // Validate: check that every field has a value
             for (const [key, val] of Object.entries(data)) {
                 if (!val) {
-                    resultDiv.innerHTML = `<p class="error">Please fill in all fields.</p>`;
-                    resultDiv.classList.add("show");
-                    return;
+                    showResult(resultDiv, '<p class="error">Please fill in all fields.</p>');
+                    return null;
                 }
             }
 
+            showLoading(resultDiv);
+
             try {
+                // fetch() sends an HTTP request to the API
+                //   method: "POST"         - we're sending data
+                //   headers                 - tell the server we're sending JSON
+                //   body: JSON.stringify()  - convert JS object to JSON string
                 const res = await fetch(`${API_URL}/predict-crop`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(data),
                 });
+
+                // Parse the JSON response body
                 const result = await res.json();
 
-                if (result.error) {
-                    resultDiv.innerHTML = `<p class="error">${result.error}</p>`;
-                } else {
-                    let barsHtml = result.top_3.map(item => `
-                        <div class="probability-bar">
-                            <span class="name">${item.crop}</span>
-                            <div class="bar-bg"><div class="bar-fill" style="width:${item.probability}%"></div></div>
-                            <span class="pct">${item.probability}%</span>
-                        </div>
-                    `).join("");
-
-                    resultDiv.innerHTML = `
-                        <h3>Recommended Crop</h3>
-                        <span class="crop-badge">${result.recommended_crop}</span>
-                        <h3 style="margin-top:16px">Top 3 Predictions</h3>
-                        ${barsHtml}
-                    `;
+                // Check for validation errors (FastAPI returns 422 for bad input)
+                if (result.detail) {
+                    showResult(resultDiv, `<p class="error">Validation error. Check your inputs.</p>`);
+                    return null;
                 }
+
+                // Build the HTML to display results
+                // .map() transforms each item in the array into an HTML string
+                // .join("") combines them into one string
+                let barsHtml = result.top_3.map(item => `
+                    <div class="probability-bar">
+                        <span class="name">${item.crop}</span>
+                        <div class="bar-bg">
+                            <div class="bar-fill" style="width:${item.probability}%"></div>
+                        </div>
+                        <span class="pct">${item.probability}%</span>
+                    </div>
+                `).join("");
+
+                showResult(resultDiv, `
+                    <h3>Recommended Crop</h3>
+                    <span class="crop-badge">${result.recommended_crop}</span>
+                    <h3>Top 3 Predictions</h3>
+                    ${barsHtml}
+                `);
+
+                // Return the crop name so getBoth() can use it
+                return result.recommended_crop;
+
             } catch (err) {
-                resultDiv.innerHTML = `<p class="error">Could not connect to server. Make sure the backend is running.</p>`;
+                // fetch() throws an error if the server is unreachable
+                showResult(resultDiv,
+                    '<p class="error">Could not connect to server. Make sure the backend is running on port 8000.</p>'
+                );
+                return null;
             }
-            resultDiv.classList.add("show");
         }
 
-        async function recommendFertilizer() {
-            const resultDiv = document.getElementById("fert-result");
+
+        // ─── Fertilizer Recommendation ──────────────────────────────────────
+
+        /**
+         * Reads N, P, K (and optional crop), sends to /recommend-fertilizer,
+         * and displays the results.
+         *
+         * Two response formats depending on whether a crop is specified:
+         *
+         * WITHOUT crop (general mode):
+         *   { nutrient_status: {nitrogen: "low", ...},
+         *     recommendations: ["Apply Urea...", ...],
+         *     suggested_fertilizers: [{name, nutrient, description}, ...] }
+         *
+         * WITH crop (crop-specific mode):
+         *   { crop: "rice",
+         *     nutrient_analysis: {N: {soil_value, ideal_range, status, gap}, ...},
+         *     fertilizer_plan: [{nutrient, action, fertilizers: [...]}, ...] }
+         *
+         * @param {string} [overrideCrop] - Optional crop name (used by getBoth)
+         */
+        async function recommendFertilizer(overrideCrop) {
+            const resultDiv = "fert-result";
+
             const data = {
                 N: document.getElementById("fert-n").value,
                 P: document.getElementById("fert-p").value,
                 K: document.getElementById("fert-k").value,
             };
 
+            // Validate N, P, K are filled
             for (const [key, val] of Object.entries(data)) {
                 if (!val) {
-                    resultDiv.innerHTML = `<p class="error">Please fill in all fields.</p>`;
-                    resultDiv.classList.add("show");
+                    showResult(resultDiv, '<p class="error">Please fill in N, P, and K fields.</p>');
                     return;
                 }
             }
+
+            // Use overrideCrop (from getBoth) or the dropdown selection
+            const crop = overrideCrop || document.getElementById("fert-crop").value;
+            if (crop) {
+                data.crop = crop;
+            }
+
+            showLoading(resultDiv);
 
             try {
                 const res = await fetch(`${API_URL}/recommend-fertilizer`, {
@@ -323,26 +627,111 @@
                 });
                 const result = await res.json();
 
-                if (result.error) {
-                    resultDiv.innerHTML = `<p class="error">${result.error}</p>`;
-                } else {
-                    let statusHtml = Object.entries(result.nutrient_status).map(([nutrient, level]) =>
-                        `<span class="nutrient-chip ${level}">${nutrient}: ${level}</span>`
+                if (result.detail) {
+                    showResult(resultDiv, '<p class="error">Validation error. Check your inputs.</p>');
+                    return;
+                }
+
+                let html = "";
+
+                // ── Crop-specific response format ──
+                if (result.nutrient_analysis) {
+                    // Build nutrient status chips
+                    let chipsHtml = Object.entries(result.nutrient_analysis).map(([name, info]) =>
+                        `<span class="nutrient-chip ${info.status}">
+                            ${name}: ${info.status} (yours: ${info.soil_value}, ideal: ${info.ideal_range})
+                        </span>`
                     ).join("");
 
-                    let recsHtml = result.recommendations.map(r => `<li>&#8226; ${r}</li>`).join("");
+                    html += `<h3>Nutrient Analysis for ${result.crop}</h3>`;
+                    html += `<div class="nutrient-status">${chipsHtml}</div>`;
 
-                    resultDiv.innerHTML = `
-                        <h3>Nutrient Status</h3>
-                        <div class="nutrient-status">${statusHtml}</div>
-                        <h3>Recommendations</h3>
-                        <ul>${recsHtml}</ul>
-                    `;
+                    // Build fertilizer plan cards
+                    if (result.fertilizer_plan.length > 0) {
+                        html += `<h3>Fertilizer Plan</h3>`;
+                        result.fertilizer_plan.forEach(plan => {
+                            html += `<p style="margin:10px 0 6px;font-weight:600;">${plan.action}</p>`;
+                            plan.fertilizers.forEach(f => {
+                                html += `
+                                    <div class="fert-card">
+                                        <div class="fert-name">${f.name}</div>
+                                        <div class="fert-nutrient">${f.nutrient}</div>
+                                        <div class="fert-desc">${f.description}</div>
+                                    </div>`;
+                            });
+                        });
+                    } else {
+                        html += `<p style="margin-top:12px;color:#2e7d32;font-weight:600;">
+                            All nutrients are within the optimal range for ${result.crop}. No fertilizer changes needed!
+                        </p>`;
+                    }
+
+                // ── General response format ──
+                } else {
+                    // Nutrient status chips
+                    let chipsHtml = Object.entries(result.nutrient_status).map(([name, level]) =>
+                        `<span class="nutrient-chip ${level}">${name}: ${level}</span>`
+                    ).join("");
+
+                    html += `<h3>Nutrient Status</h3>`;
+                    html += `<div class="nutrient-status">${chipsHtml}</div>`;
+
+                    // Recommendation text
+                    let recsHtml = result.recommendations.map(r => `<li>&#8226; ${r}</li>`).join("");
+                    html += `<h3>Recommendations</h3><ul>${recsHtml}</ul>`;
+
+                    // Suggested fertilizer cards
+                    if (result.suggested_fertilizers && result.suggested_fertilizers.length > 0) {
+                        html += `<hr class="divider"><h3>Suggested Fertilizers</h3>`;
+                        result.suggested_fertilizers.forEach(f => {
+                            html += `
+                                <div class="fert-card">
+                                    <div class="fert-name">${f.name}</div>
+                                    <div class="fert-nutrient">${f.nutrient}</div>
+                                    <div class="fert-desc">${f.description}</div>
+                                </div>`;
+                        });
+                    }
                 }
+
+                showResult(resultDiv, html);
+
             } catch (err) {
-                resultDiv.innerHTML = `<p class="error">Could not connect to server. Make sure the backend is running.</p>`;
+                showResult(resultDiv,
+                    '<p class="error">Could not connect to server. Make sure the backend is running on port 8000.</p>'
+                );
             }
-            resultDiv.classList.add("show");
+        }
+
+
+        // ─── Combined: Crop + Fertilizer ────────────────────────────────────
+
+        /**
+         * Predicts the crop FIRST, then automatically fetches fertilizer advice
+         * for that crop using the same N, P, K values.
+         *
+         * Flow:
+         *   1. Call predictCrop() and wait for the result
+         *   2. Copy N, P, K values into the fertilizer form
+         *   3. Call recommendFertilizer() with the predicted crop name
+         */
+        async function getBoth() {
+            // Step 1: Predict crop
+            const crop = await predictCrop();
+
+            if (!crop) return;  // prediction failed, stop here
+
+            // Step 2: Copy N, P, K values from crop form to fertilizer form
+            document.getElementById("fert-n").value = document.getElementById("crop-n").value;
+            document.getElementById("fert-p").value = document.getElementById("crop-p").value;
+            document.getElementById("fert-k").value = document.getElementById("crop-k").value;
+
+            // Step 3: Set the crop dropdown to match the prediction
+            const select = document.getElementById("fert-crop");
+            select.value = crop;
+
+            // Step 4: Get fertilizer recommendation for the predicted crop
+            await recommendFertilizer(crop);
         }
     </script>
 </body>

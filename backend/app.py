@@ -10,7 +10,7 @@ from flask_cors import CORS
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from utils.fertilizer_recommender import recommend_fertilizer
+from utils.fertilizer_recommender import recommend_fertilizer, recommend_for_crop
 from utils.data_loader import get_feature_columns
 
 app = Flask(__name__)
@@ -89,6 +89,27 @@ def fertilizer():
         return jsonify({"error": "N, P, K must be numbers."}), 400
 
     result = recommend_fertilizer(n, p, k)
+    return jsonify(result)
+
+
+@app.route("/recommend-fertilizer-for-crop", methods=["POST"])
+def fertilizer_for_crop():
+    """Recommend fertilizer based on N, P, K values for a specific crop."""
+    data = request.get_json()
+    required = ["N", "P", "K", "crop"]
+
+    missing = [f for f in required if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {missing}"}), 400
+
+    try:
+        n = float(data["N"])
+        p = float(data["P"])
+        k = float(data["K"])
+    except (ValueError, TypeError):
+        return jsonify({"error": "N, P, K must be numbers."}), 400
+
+    result = recommend_for_crop(n, p, k, data["crop"])
     return jsonify(result)
 
 
