@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Smart Agriculture Advisor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2e7d32;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #555;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #388e3c;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #c8e6c9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #66bb6a;
+        }
+
+        button {
+            background: #43a047;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #2e7d32; }
+
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f1f8e9;
+            border-radius: 8px;
+            border-left: 4px solid #66bb6a;
+            display: none;
+        }
+
+        .result.show { display: block; }
+
+        .result h3 {
+            color: #2e7d32;
+            margin-bottom: 10px;
+        }
+
+        .result ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .result li {
+            padding: 4px 0;
+            color: #333;
+        }
+
+        .crop-badge {
+            display: inline-block;
+            background: #43a047;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .probability-bar {
+            display: flex;
+            align-items: center;
+            margin: 6px 0;
+        }
+
+        .probability-bar .name {
+            width: 100px;
+            font-weight: 600;
+        }
+
+        .probability-bar .bar-bg {
+            flex: 1;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 10px;
+        }
+
+        .probability-bar .bar-fill {
+            height: 100%;
+            background: #66bb6a;
+            border-radius: 10px;
+            transition: width 0.5s;
+        }
+
+        .probability-bar .pct {
+            width: 50px;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .error { color: #c62828; font-weight: 600; }
+
+        .nutrient-status {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .nutrient-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .nutrient-chip.low { background: #ffcdd2; color: #c62828; }
+        .nutrient-chip.adequate { background: #c8e6c9; color: #2e7d32; }
+        .nutrient-chip.high { background: #fff9c4; color: #f57f17; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Smart Agriculture Advisor</h1>
+        <p class="subtitle">Get crop and fertilizer recommendations based on your soil conditions</p>
+
+        <!-- Crop Prediction -->
+        <div class="card">
+            <h2>Crop Recommendation</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nitrogen (N)</label>
+                    <input type="number" id="crop-n" placeholder="e.g. 90">
+                </div>
+                <div class="form-group">
+                    <label>Phosphorus (P)</label>
+                    <input type="number" id="crop-p" placeholder="e.g. 42">
+                </div>
+                <div class="form-group">
+                    <label>Potassium (K)</label>
+                    <input type="number" id="crop-k" placeholder="e.g. 43">
+                </div>
+                <div class="form-group">
+                    <label>Temperature (&deg;C)</label>
+                    <input type="number" id="crop-temp" placeholder="e.g. 25" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Humidity (%)</label>
+                    <input type="number" id="crop-humidity" placeholder="e.g. 80" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>pH</label>
+                    <input type="number" id="crop-ph" placeholder="e.g. 6.5" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Rainfall (mm)</label>
+                    <input type="number" id="crop-rainfall" placeholder="e.g. 200" step="0.1">
+                </div>
+            </div>
+            <button onclick="predictCrop()">Get Crop Recommendation</button>
+            <div class="result" id="crop-result"></div>
+        </div>
+
+        <!-- Fertilizer Recommendation -->
+        <div class="card">
+            <h2>Fertilizer Recommendation</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nitrogen (N)</label>
+                    <input type="number" id="fert-n" placeholder="e.g. 40">
+                </div>
+                <div class="form-group">
+                    <label>Phosphorus (P)</label>
+                    <input type="number" id="fert-p" placeholder="e.g. 25">
+                </div>
+                <div class="form-group">
+                    <label>Potassium (K)</label>
+                    <input type="number" id="fert-k" placeholder="e.g. 55">
+                </div>
+            </div>
+            <button onclick="recommendFertilizer()">Get Fertilizer Advice</button>
+            <div class="result" id="fert-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:5000";
+
+        async function predictCrop() {
+            const resultDiv = document.getElementById("crop-result");
+            const data = {
+                N: document.getElementById("crop-n").value,
+                P: document.getElementById("crop-p").value,
+                K: document.getElementById("crop-k").value,
+                temperature: document.getElementById("crop-temp").value,
+                humidity: document.getElementById("crop-humidity").value,
+                ph: document.getElementById("crop-ph").value,
+                rainfall: document.getElementById("crop-rainfall").value,
+            };
+
+            // Validate all fields are filled
+            for (const [key, val] of Object.entries(data)) {
+                if (!val) {
+                    resultDiv.innerHTML = `<p class="error">Please fill in all fields.</p>`;
+                    resultDiv.classList.add("show");
+                    return;
+                }
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/predict-crop`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data),
+                });
+                const result = await res.json();
+
+                if (result.error) {
+                    resultDiv.innerHTML = `<p class="error">${result.error}</p>`;
+                } else {
+                    let barsHtml = result.top_3.map(item => `
+                        <div class="probability-bar">
+                            <span class="name">${item.crop}</span>
+                            <div class="bar-bg"><div class="bar-fill" style="width:${item.probability}%"></div></div>
+                            <span class="pct">${item.probability}%</span>
+                        </div>
+                    `).join("");
+
+                    resultDiv.innerHTML = `
+                        <h3>Recommended Crop</h3>
+                        <span class="crop-badge">${result.recommended_crop}</span>
+                        <h3 style="margin-top:16px">Top 3 Predictions</h3>
+                        ${barsHtml}
+                    `;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<p class="error">Could not connect to server. Make sure the backend is running.</p>`;
+            }
+            resultDiv.classList.add("show");
+        }
+
+        async function recommendFertilizer() {
+            const resultDiv = document.getElementById("fert-result");
+            const data = {
+                N: document.getElementById("fert-n").value,
+                P: document.getElementById("fert-p").value,
+                K: document.getElementById("fert-k").value,
+            };
+
+            for (const [key, val] of Object.entries(data)) {
+                if (!val) {
+                    resultDiv.innerHTML = `<p class="error">Please fill in all fields.</p>`;
+                    resultDiv.classList.add("show");
+                    return;
+                }
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/recommend-fertilizer`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data),
+                });
+                const result = await res.json();
+
+                if (result.error) {
+                    resultDiv.innerHTML = `<p class="error">${result.error}</p>`;
+                } else {
+                    let statusHtml = Object.entries(result.nutrient_status).map(([nutrient, level]) =>
+                        `<span class="nutrient-chip ${level}">${nutrient}: ${level}</span>`
+                    ).join("");
+
+                    let recsHtml = result.recommendations.map(r => `<li>&#8226; ${r}</li>`).join("");
+
+                    resultDiv.innerHTML = `
+                        <h3>Nutrient Status</h3>
+                        <div class="nutrient-status">${statusHtml}</div>
+                        <h3>Recommendations</h3>
+                        <ul>${recsHtml}</ul>
+                    `;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<p class="error">Could not connect to server. Make sure the backend is running.</p>`;
+            }
+            resultDiv.classList.add("show");
+        }
+    </script>
+</body>
+</html>
